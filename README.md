@@ -1,4 +1,6 @@
-# Jogo survivor — nome em definição
+# Almas do Eclipse
+
+Roguelite de sobrevivência em fantasia sombria, atualmente em estabilização para Windows.
 
 Fonte original recebida de `F:\CODEX PROJETOS\JOGO ESTILO VAMPIRES\Vampire_Survivors_Jogo.html`.
 A cópia original permanece naquela pasta e no primeiro commit da branch `main`.

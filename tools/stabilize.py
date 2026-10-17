@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 
 root = Path(__file__).resolve().parents[1]
-p = root / 'Vampire_Survivors_Jogo.html'
+p = root / 'Almas_do_Eclipse.html'
 s = p.read_text(encoding='utf-8-sig')
 assert 'window.gamePersistence' not in s, 'Correções já aplicadas'
 s = s.replace('<script>', '<script src="src/save.js"></script>\n<script>', 1)

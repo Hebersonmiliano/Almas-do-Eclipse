@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { create, KEY } = require('../src/save.js');
-const html = fs.readFileSync(require('node:path').resolve(__dirname, '../Vampire_Survivors_Jogo.html'), 'utf8');
+const html = fs.readFileSync(require('node:path').resolve(__dirname, '../Almas_do_Eclipse.html'), 'utf8');
 function storage(initial = {}) {
   const data = new Map(Object.entries(initial));
   return { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value), data };
