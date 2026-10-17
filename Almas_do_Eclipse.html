@@ -1477,7 +1477,8 @@ window.addEventListener("load",()=>{
         box-shadow:0 0 25px rgba(250,204,21,.3);
     `;
 
-    document.body.appendChild(metaHud);
+    // O painel fixo foi removido para deixar a arena livre. A progressão
+    // permanente continua ativa e salva normalmente.
 
     function renderMetaHud(){
 
@@ -1773,7 +1774,7 @@ window.addEventListener("load",()=>{
         box-shadow:0 0 30px rgba(250,204,21,.4);
     `;
 
-    document.body.appendChild(btn);
+    // O atalho flutuante META foi removido para não cobrir a área de jogo.
 
 });
 </script>
@@ -1855,7 +1856,8 @@ window.addEventListener("load",()=>{
         box-shadow:0 0 30px rgba(168,85,247,.35);
     `;
 
-    document.body.appendChild(relicHud);
+    // A lista fixa foi removida da arena. As relíquias continuam ativas e
+    // podem ser consultadas na tela de pausa/build.
 
     function renderRelics(){
 

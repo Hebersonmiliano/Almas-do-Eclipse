@@ -12,6 +12,23 @@ async function pressPad(page, index) {
   await page.evaluate(i => { window.__testGamepad.buttons[i] = { pressed: false, value: 0 }; }, index);
   await page.waitForTimeout(80);
 }
+test('mantém a arena sem os painéis fixos de meta e relíquias', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => ({
+    metaHud: document.body.contains(document.getElementById('metaHud')),
+    relicHud: document.body.contains(document.getElementById('relicHud')),
+    relicToggle: Boolean(document.getElementById('toggleRelicHud')),
+    metaButton: [...document.body.querySelectorAll('button')].some(button => button.textContent.includes('META')),
+    progressionActive: typeof window.openMetaShop === 'function' && typeof window.addRelic === 'function'
+  }))).toEqual({
+    metaHud: false,
+    relicHud: false,
+    relicToggle: false,
+    metaButton: false,
+    progressionActive: true
+  });
+});
 test('abre, inicia, coleta XP, pausa poderes, encerra e recupera save', async ({ page }) => {
   await installGamepad(page);
   const errors = [];
