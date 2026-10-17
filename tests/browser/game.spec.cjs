@@ -1,11 +1,26 @@
 const { test, expect } = require('@playwright/test');
+async function installGamepad(page) {
+  await page.addInitScript(() => {
+    const buttons = Array.from({ length: 17 }, () => ({ pressed: false, value: 0 }));
+    window.__testGamepad = { connected: true, id: 'Xbox Wireless Controller', mapping: 'standard', axes: [0, 0, 0, 0], buttons };
+    Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [window.__testGamepad] });
+  });
+}
+async function pressPad(page, index) {
+  await page.evaluate(i => { window.__testGamepad.buttons[i] = { pressed: true, value: 1 }; }, index);
+  await page.waitForTimeout(80);
+  await page.evaluate(i => { window.__testGamepad.buttons[i] = { pressed: false, value: 0 }; }, index);
+  await page.waitForTimeout(80);
+}
 test('abre, inicia, coleta XP, pausa poderes, encerra e recupera save', async ({ page }) => {
+  await installGamepad(page);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await page.keyboard.press('Enter');
   await page.waitForTimeout(1800);
   await page.evaluate(() => startSelectedGame());
+  await page.evaluate(() => { player.maxHp = 100000; player.hp = player.maxHp; });
   await expect.poll(() => page.evaluate(() => state)).toBe('play');
   await page.waitForTimeout(800);
   const xp = await page.evaluate(() => {
@@ -48,6 +63,46 @@ test('abre, inicia, coleta XP, pausa poderes, encerra e recupera save', async ({
   expect(result.crystals).toBe(3);
   await page.reload();
   expect(await page.evaluate(() => meta.gold)).toBe(result.gold);
+  expect(errors).toEqual([]);
+});
+test('teclado e controle Xbox movem, ativam habilidades e controlam pausa', async ({ page }) => {
+  await installGamepad(page);
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(1800);
+  await page.evaluate(() => document.querySelector('.big-play').focus());
+  await pressPad(page, 0);
+  await expect.poll(() => page.evaluate(() => state)).toBe('play');
+  await page.evaluate(() => { player.maxHp = 100000; player.hp = player.maxHp; });
+  const start = await page.evaluate(() => ({ x: player.x, y: player.y }));
+  await page.keyboard.down('KeyD');
+  await page.waitForTimeout(180);
+  await page.keyboard.up('KeyD');
+  expect(await page.evaluate(() => player.x)).toBeGreaterThan(start.x);
+  await page.evaluate(() => { window.__testGamepad.axes[1] = 1; });
+  await page.waitForTimeout(180);
+  await page.evaluate(() => { window.__testGamepad.axes[1] = 0; });
+  expect(await page.evaluate(() => player.y)).toBeGreaterThan(start.y);
+  await pressPad(page, 9);
+  await expect.poll(() => page.evaluate(() => paused && !buildScreen.classList.contains('hidden'))).toBe(true);
+  await pressPad(page, 1);
+  await expect.poll(() => page.evaluate(() => !paused && buildScreen.classList.contains('hidden'))).toBe(true);
+  await pressPad(page, 0);
+  expect(await page.evaluate(() => player.cd.dash)).toBeGreaterThan(0);
+  await pressPad(page, 2);
+  expect(await page.evaluate(() => player.cd.bomb)).toBeGreaterThan(0);
+  await pressPad(page, 1);
+  expect(await page.evaluate(() => player.cd.shield)).toBeGreaterThan(0);
+  await pressPad(page, 3);
+  expect(await page.evaluate(() => player.cd.meteor)).toBeGreaterThan(0);
+  await pressPad(page, 5);
+  expect(await page.evaluate(() => player.cd.time)).toBeGreaterThan(0);
+  await page.keyboard.press('Tab');
+  expect(await page.evaluate(() => paused)).toBe(true);
+  await page.keyboard.press('Escape');
+  expect(await page.evaluate(() => paused)).toBe(false);
   expect(errors).toEqual([]);
 });
 test('migra save antigo no navegador e mantém melhorias após recarregar', async ({ page }) => {

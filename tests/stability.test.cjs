@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { create, KEY } = require('../src/save.js');
+const GameInput = require('../src/input.js');
 const html = fs.readFileSync(require('node:path').resolve(__dirname, '../Almas_do_Eclipse.html'), 'utf8');
 function storage(initial = {}) {
   const data = new Map(Object.entries(initial));
@@ -24,7 +25,7 @@ test('todos os scripts embutidos têm sintaxe válida', () => {
   for (const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) {
     new vm.Script(match[1], { filename: 'inline-' + count++ });
   }
-  assert.equal(count, 14);
+  assert.equal(count, 15);
 });
 test('migração preserva os dois saldos e melhorias; reabertura não duplica ouro', () => {
   const db = storage({ vs10: JSON.stringify({ gold: 80, hp: 2, dmg: 3 }), metaProgression: JSON.stringify({ gold: 50, souls: 4, upgrades: { magnet: 2 } }) });
@@ -93,4 +94,20 @@ test('recompensa permanente usa estatísticas reais e não credita ouro duas vez
   assert.equal(context.save.gold, 70);
   assert.equal(context.save.souls, 3);
   assert.equal(context.save.crystals, 3);
+});
+test('controle Xbox aplica deadzone, D-pad e borda de pressionamento', () => {
+  const buttons = Array.from({ length: 17 }, () => ({ pressed: false, value: 0 }));
+  const pad = { connected: true, id: 'Xbox Controller', axes: [0.1, -0.75], buttons };
+  const input = GameInput.create(() => [pad]);
+  let result = input.poll();
+  assert.equal(result.move.x, 0);
+  assert.ok(result.move.y < -0.6);
+  buttons[0] = { pressed: true, value: 1 };
+  result = input.poll();
+  assert.equal(result.justPressed.confirm, true);
+  assert.equal(input.poll().justPressed.confirm, false);
+  buttons[0] = { pressed: false, value: 0 };
+  buttons[15] = { pressed: true, value: 1 };
+  result = input.poll();
+  assert.equal(result.move.x, 1);
 });

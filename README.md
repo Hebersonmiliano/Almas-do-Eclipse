@@ -12,6 +12,12 @@ Com Node.js instalado: `npm test` e `npm run build`.
 Sirva a pasta `dist` com um servidor HTTP local, por exemplo `python -m http.server 8080 --directory dist`, e abra `http://localhost:8080`.
 Não publique a raiz do repositório; distribua apenas `dist`.
 
+## Controles
+
+- Teclado: WASD ou setas movem; Espaço dash; Q bomba; E escudo; R meteoro; F tempo; Tab, P ou Esc abrem/fecham a pausa e a build.
+- Xbox: analógico esquerdo ou D-pad movem; A dash/confirma; X bomba; B escudo/volta; Y meteoro; RB tempo; Menu ou View abrem a pausa e a build.
+- Menus: setas ou D-pad navegam; Enter, Espaço ou A confirmam; Esc ou B voltam quando permitido.
+
 ## Fluxo de publicação
 
 1. Commit e envio à branch `teste`.

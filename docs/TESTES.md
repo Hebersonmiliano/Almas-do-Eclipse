@@ -8,6 +8,7 @@ Data: 17/10/2026.
 - `npm run build`: pacote estático gerado em `dist`.
 - `$env:PLAYWRIGHT_CHANNEL='msedge'; npx playwright test`: 2 testes no Edge headless, 1280×720.
 - Navegador: início de partida, coleta sem duplicação, pausa do magnetismo/escudo, recompensa direta de chefe, encerramento idempotente, reabertura e migração de dados antigos.
+- Entrada emulada: teclado e controle Xbox padrão para movimento, cinco habilidades, confirmação, retorno e pausa/build.
 - `git diff --check`: sem erros de whitespace.
 
 Os testes de navegador controlam o estado por JavaScript: a morte do chefe e o encerramento são simulados, não representam uma partida completa jogada. O navegador não apresentou exceções no primeiro cenário. O servidor retornou 404 apenas para o favicon ausente.
