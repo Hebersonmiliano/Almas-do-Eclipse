@@ -21,7 +21,7 @@ Não publique a raiz do repositório; distribua apenas `dist`.
 5. Só então preparar PR para `main` e publicar a mesma versão aprovada.
 
 Repositório, nome definitivo e hospedagem ainda precisam ser definidos com o usuário.
-O workflow atual gera um artefato; não configura hospedagem nem deploy de produção.
+O workflow gera um artefato e publica a branch `teste` em `/teste/`. A raiz informa que produção ainda não foi publicada.
 Proteções de branches e aprovadores de ambiente precisarão ser configurados no GitHub quando o repositório for escolhido.
 Os ambientes de teste e produção devem usar origens diferentes para isolar o localStorage.
 O save antigo só pode ser migrado no mesmo navegador/origem em que foi criado; mudar de arquivo local para hospedagem não transfere os dados automaticamente.

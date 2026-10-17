@@ -20,7 +20,7 @@ Os testes de navegador controlam o estado por JavaScript: a morte do chefe e o e
 - Conferir balanceamento após unificação das moedas e timers.
 - Verificar interface em outras resoluções e desempenho com muitos inimigos.
 - Validar áudio, controles, perda de foco e reinício manual.
-- Configurar repositório e hospedagem; executar Actions no GitHub e validar endereço de teste.
+- Validar manualmente o endereço público de teste após cada atualização.
 - Receber confirmação explícita do usuário para promover o commit aprovado.
 
 Produção não foi publicada. O workflow gera artefato, não um endereço hospedado.

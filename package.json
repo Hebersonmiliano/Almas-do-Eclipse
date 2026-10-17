@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "build": "node tools/build.cjs"
+    "build": "node tools/build.cjs",
+    "build:pages:test": "node tools/prepare-pages-test.cjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1"

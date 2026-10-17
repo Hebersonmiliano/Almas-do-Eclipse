@@ -7,6 +7,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  pages: write
+  id-token: write
 jobs:
   validar:
     runs-on: ubuntu-latest
@@ -20,8 +22,23 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
+      - run: npm run build:pages:test
       - uses: actions/upload-artifact@v4
         with:
           name: jogo-teste-${{ github.sha }}
           path: dist/
           retention-days: 14
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+  publicar-teste:
+    needs: validar
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}teste/
+    steps:
+      - name: Publicar ambiente de teste
+        id: deployment
+        uses: actions/deploy-pages@v4
