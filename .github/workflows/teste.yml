@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}teste/
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Publicar ambiente de teste
         id: deployment
