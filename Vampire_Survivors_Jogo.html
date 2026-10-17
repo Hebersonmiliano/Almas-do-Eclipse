@@ -461,6 +461,7 @@ button[onclick="openMetaShop()"]{
 </div></div>
 <div id="bossIntro" class="overlay hidden"><div class="panel"><h1 id="bossIntroName" style="color:#facc15;font-size:46px">BOSS</h1><img id="bossIntroImg" class="bossIntroImg" alt="Boss"><p id="bossIntroText"></p></div></div>
 <div id="over" class="overlay hidden"><div class="panel"><h1 id="endTitle">Fim</h1><div id="final"></div><button onclick="location.reload()">Jogar novamente</button></div></div>
+<script src="src/save.js"></script>
 <script>
 window.addEventListener('error',function(e){
   var box=document.getElementById('errorBox');
@@ -639,7 +640,15 @@ function limitFX(){
 function buildCompareBar(){return '<div class="compare-bar"><span></span></div>'}
 
 addEventListener('keydown',e=>{let k=e.key.toLowerCase();keys[k]=true;if(k==='tab'){e.preventDefault();toggleBuild()}if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' ','q','e','r','f'].includes(k))e.preventDefault()});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);canvas.onmousemove=e=>{mouse.x=e.clientX;mouse.y=e.clientY};canvas.onmousedown=e=>{if(e.button===0){mouse.down=true;mouse.x=e.clientX;mouse.y=e.clientY}};canvas.onmouseup=()=>mouse.down=false;canvas.onmouseleave=()=>mouse.down=false;
-let meta=JSON.parse(localStorage.getItem('vs10')||'{"gold":0,"hp":0,"dmg":0,"speed":0,"luck":0,"xp":0}');function save(){localStorage.setItem('vs10',JSON.stringify(meta));info()}function info(){shopInfo.textContent=`Ouro ${meta.gold} | HP ${meta.hp} | Dano ${meta.dmg} | Vel ${meta.speed} | Sorte ${meta.luck} | XP ${meta.xp}`}info();
+window.gamePersistence=GameSave.create(localStorage,(message,error)=>{
+ console.warn(message,error);
+ let box=document.getElementById('saveWarning');
+ if(!box){box=document.createElement('div');box.id='saveWarning';box.style='position:fixed;bottom:5px;left:5px;z-index:100000;background:#781e1e;color:white;padding:10px';document.body.appendChild(box)}
+ box.textContent=message;
+});
+let meta=window.gamePersistence.data;
+function save(){window.gamePersistence.persist();info();window.refreshMetaHud?.()}
+function info(){shopInfo.textContent=`Ouro ${meta.gold} | HP ${meta.hp} | Dano ${meta.dmg} | Vel ${meta.speed} | Sorte ${meta.luck} | XP ${meta.xp}`;const mg=document.getElementById('menuGold');if(mg)mg.textContent='Ouro: '+meta.gold}info();
 const items=[['Vida','+10 HP',40,'hp'],['Dano','+8% dano',60,'dmg'],['Velocidade','+5% velocidade',55,'speed'],['Sorte','+baús raros',80,'luck'],['XP','+8% XP',70,'xp']];window.openShop=()=>{shop.classList.remove('hidden');goldEl.textContent='Ouro: '+meta.gold;shopCards.innerHTML='';items.forEach(it=>{let c=it[2]+meta[it[3]]*it[2],d=document.createElement('div');d.className='card';d.innerHTML=`<h3>${it[0]}</h3><p>${it[1]}</p><b>${c} ouro</b>`;d.onclick=()=>{if(meta.gold>=c){meta.gold-=c;meta[it[3]]++;save();openShop()}};shopCards.appendChild(d)})};window.closeShop=()=>shop.classList.add('hidden');
 let mode='normal',diff='normal';const DIFF={easy:{n:'Fácil',sp:.75,hp:.75,spd:.85,dmg:.7,xp:1.15,gold:1.15},normal:{n:'Normal',sp:1,hp:1,spd:1,dmg:1,xp:1,gold:1},hard:{n:'Difícil',sp:1.35,hp:1.35,spd:1.12,dmg:1.25,xp:1.25,gold:1.35},nightmare:{n:'Pesadelo',sp:1.9,hp:1.8,spd:1.25,dmg:1.6,xp:1.5,gold:1.9}};window.setMode=m=>{mode=m;info();shopInfo.textContent+=` | ${mode} | ${DIFF[diff].n}`};window.setDiff=d=>{diff=d;info();shopInfo.textContent+=` | ${mode} | ${DIFF[diff].n}`};
 let state='menu',paused=false,last=0,time=0,kills=0,goldRun=0,shake=0,combo=0,maxCombo=0,comboT=0,wave=1,waveT=18,eventT=25,event='Nenhum',eventLeft=0,lastBoss=0,shield=0,freeze=0,slow=0,dmgDone=0,dpsNow=0,dpsBucket=0,dpsTimer=0;
@@ -771,9 +780,10 @@ function drawMenuPreview(){
  for(let i=0;i<7;i++){let px=(i*47+t*35)%w,py=125+Math.sin(t*2+i)*25;x.fillStyle=i%2?'#ef4444':'#38bdf8';x.beginPath();x.arc(px,py,7,0,Math.PI*2);x.fill();}
  requestAnimationFrame(drawMenuPreview);
 }
-setTimeout(()=>{selectMenuClass('necromancer');drawMenuPreview();let mg=document.getElementById('menuGold');if(mg)mg.textContent='💰 Ouro: '+(localStorage.getItem('gold')||0);},100);
+setTimeout(()=>{selectMenuClass('necromancer');drawMenuPreview();let mg=document.getElementById('menuGold');if(mg)mg.textContent='💰 Ouro: '+meta.gold;},100);
 
 window.startGame=cls=>{
+if(state!=='menu')return;
 try{
 player.classType=cls;
 player.maxHp+=meta.hp*10;
@@ -781,6 +791,8 @@ player.hp=player.maxHp;
 player.damage*=1+meta.dmg*.08;
 player.speed*=1+meta.speed*.05;
 applyClass(cls);
+window.applyMetaUpgrades?.();
+window.metaRewardGiven=false;
 menu.classList.add('hidden');
 state='play';
 music();
@@ -934,7 +946,7 @@ if(e.kind==='frostDragon'){freeze=Math.max(freeze,.8);pools.push({x:e.x,y:e.y,r:
 e.skill=rand(3,5)}
 function eb(e,a,spd,r,dmg,c){bullets.push({x:e.x,y:e.y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,r,life:2.5,dmg,color:c,enemy:true})}
 function applyEl(e,dmg){if(player.elements.fire)e.burn=Math.max(e.burn,2+player.elements.fire*.4);if(player.elements.ice&&Math.random()<.055*player.elements.ice)e.freeze=.7+player.elements.ice*.15;if(player.elements.poison)e.poison=(e.poison||0)+player.elements.poison*.9;if(player.elements.lightning&&Math.random()<.08*player.elements.lightning){let n=near(e.x,e.y);if(n&&n!==e)n.hp-=22*player.damage}if(player.elements.shadow&&Math.random()<.05*player.elements.shadow)e.hp-=dmg*1.4;if(player.elements.light&&Math.random()<.03*player.elements.light)player.hp=Math.min(player.maxHp,player.hp+4+player.elements.light)}
-function hit(e,dmg,burst=false){if(e.boss&&e.invuln>0){txt('BLOQUEADO',e.x,e.y-e.r-20,.45);return}dmg=bossDamageReduction(e,dmg);if(Math.random()<player.crit){dmg*=2.8;txt('CRIT!',e.x,e.y-e.r-20,.45);shake=Math.max(shake,2.2)}applyEl(e,dmg);e.hp-=dmg;dmgDone+=dmg;dpsBucket+=dmg;if(player.lifesteal)player.hp=Math.min(player.maxHp,player.hp+dmg*player.lifesteal*.02);if(burst||Math.random()<.1)txt(Math.ceil(dmg),e.x,e.y-e.r,.45);if(e.hp<=0&&!e.dead){if(e.kind==='demon'){ring(e.x,e.y,95,'#dc2626');for(const o of enemies)if(!o.dead&&o!==e&&Math.hypot(o.x-e.x,o.y-e.y)<110)o.hp-=o.boss?18*player.damage:60*player.damage}e.dead=true;kills++;combo++;maxCombo=Math.max(maxCombo,combo);comboT=3.2;goldRun+=Math.floor(e.gold||1);gems.push({x:e.x,y:e.y,r:e.boss?11:e.elite?8:6,xp:e.xp*(1+Math.min(combo*.01,2.5)),color:e.boss?'#facc15':e.elite?'#facc15':'#38bdf8'});for(let i=0;i<(e.boss?70:e.elite?22:10);i++)particles.push({x:e.x,y:e.y,vx:rand(-170,170),vy:rand(-170,170),r:rand(2,6),life:rand(.3,.9),color:e.color});if(e.boss){chests.push({x:e.x,y:e.y,r:16,open:false,p:0,bossLoot:e.loot});txt('LOOT: '+(e.loot||'Relíquia'),e.x,e.y-70,2);txt('BOSS DERROTADO!',e.x,e.y-50,2);shake=22}}}
+function hit(e,dmg,burst=false){if(e.boss&&e.invuln>0){txt('BLOQUEADO',e.x,e.y-e.r-20,.45);return}dmg=bossDamageReduction(e,dmg);if(Math.random()<player.crit){dmg*=2.8;txt('CRIT!',e.x,e.y-e.r-20,.45);shake=Math.max(shake,2.2)}applyEl(e,dmg);e.hp-=dmg;dmgDone+=dmg;dpsBucket+=dmg;if(player.lifesteal)player.hp=Math.min(player.maxHp,player.hp+dmg*player.lifesteal*.02);if(burst||Math.random()<.1)txt(Math.ceil(dmg),e.x,e.y-e.r,.45);if(e.hp<=0&&!e.dead){if(e.kind==='demon'){ring(e.x,e.y,95,'#dc2626');for(const o of enemies)if(!o.dead&&o!==e&&Math.hypot(o.x-e.x,o.y-e.y)<110)o.hp-=o.boss?18*player.damage:60*player.damage}e.dead=true;kills++;combo++;maxCombo=Math.max(maxCombo,combo);comboT=3.2;goldRun+=Math.floor(e.gold||1);gems.push({x:e.x,y:e.y,r:e.boss?11:e.elite?8:6,xp:e.xp*(1+Math.min(combo*.01,2.5)),color:e.boss?'#facc15':e.elite?'#facc15':'#38bdf8'});for(let i=0;i<(e.boss?70:e.elite?22:10);i++)particles.push({x:e.x,y:e.y,vx:rand(-170,170),vy:rand(-170,170),r:rand(2,6),life:rand(.3,.9),color:e.color});if(e.boss){window.onBossDefeated?.(e.x,e.y);chests.push({x:e.x,y:e.y,r:16,open:false,p:0,bossLoot:e.loot});txt('LOOT: '+(e.loot||'Relíquia'),e.x,e.y-70,2);txt('BOSS DERROTADO!',e.x,e.y-50,2);shake=22}}}
 function addXp(v){player.xp+=v;while(player.xp>=player.need){player.xp-=player.need;player.level++;player.need=Math.floor(player.need*1.23+8);openLevel()}}
 
 function upgradeRarity(title){
@@ -1128,14 +1140,26 @@ buildScreen.classList.remove('hidden');
 }
 
 function updateEvents(dt){eventT-=dt;if(eventLeft>0)eventLeft-=dt;else event='Nenhum';if(eventT<=0){event=['Eclipse','Chuva de Meteoro','Névoa','Lua Sangrenta','Tempestade Elétrica'][Math.floor(Math.random()*5)];eventLeft=18;eventT=rand(45,75);txt('EVENTO: '+event,player.x,player.y-100,2.5)}if(event==='Chuva de Meteoro'&&Math.random()<.04){let x=player.x+rand(-450,450),y=player.y+rand(-300,300);ring(x,y,70,'#ef4444');for(const e of enemies)if(Math.hypot(e.x-x,e.y-y)<85)hit(e,160,true)}if(event==='Tempestade Elétrica'&&Math.random()<.06){let e=near();if(e){ring(e.x,e.y,60,'#facc15');hit(e,220,true)}}}
-function update(dt){limitFX();time+=dt;dpsTimer+=dt;if(dpsTimer>=1){dpsNow=dpsBucket/dpsTimer;dpsBucket=0;dpsTimer=0}if(comboT>0)comboT-=dt;else combo=0;if(shield>0)shield-=dt;if(freeze>0)freeze-=dt;if(slow>0)slow-=dt;for(const k in player.cd)player.cd[k]=Math.max(0,player.cd[k]-dt);if(keys[' '])active('dash');if(keys.q)active('bomb');if(keys.e)active('shield');if(keys.r)active('meteor');if(keys.f)active('time');updateEvents(dt);let biome=Math.floor(time/130)%BIOME.length;if(waveT-=dt,waveT<=0){wave++;let st=difficultyStage();waveT=[24,22,20,18,16][st];txt(wave%3?'WAVE '+wave:'HORDA MASSIVA!',player.x,player.y-100,2);let burst=wave%3===0?(22+st*10):(8+st*4);if(player.hp/player.maxHp<.25)burst=Math.floor(burst*.75);for(let i=0;i<burst;i++)spawnEnemy(chooseWaveEnemy())}
+function collectGems(dt){
+ for(const g of gems){
+  if(g.dead)continue;
+  let d=Math.hypot(g.x-player.x,g.y-player.y);
+  if(d<player.magnet){const factor=Math.min(1,dt*7);g.x+=(player.x-g.x)*factor;g.y+=(player.y-g.y)*factor}
+  if(Math.hypot(g.x-player.x,g.y-player.y)<player.r+g.r+6){g.dead=true;addXp(g.xp)}
+ }
+}
+function updatePowers(dt){
+ if(player.tempMagnetTimer>0){player.tempMagnetTimer=Math.max(0,player.tempMagnetTimer-dt);if(!player.tempMagnetTimer){player.magnet=player.baseMagnet||130;player.superMagnetTimer=0}}
+ if(player.electricShield){player.electricShieldRemaining=Math.max(0,(player.electricShieldRemaining||0)-dt);if(!player.electricShieldRemaining){player.electricShield=false;['electricShieldAura','electricShieldCore'].forEach(id=>document.getElementById(id)?.remove())}}
+}
+function update(dt){updatePowers(dt);limitFX();time+=dt;dpsTimer+=dt;if(dpsTimer>=1){dpsNow=dpsBucket/dpsTimer;dpsBucket=0;dpsTimer=0}if(comboT>0)comboT-=dt;else combo=0;if(shield>0)shield-=dt;if(freeze>0)freeze-=dt;if(slow>0)slow-=dt;for(const k in player.cd)player.cd[k]=Math.max(0,player.cd[k]-dt);if(keys[' '])active('dash');if(keys.q)active('bomb');if(keys.e)active('shield');if(keys.r)active('meteor');if(keys.f)active('time');updateEvents(dt);let biome=Math.floor(time/130)%BIOME.length;if(waveT-=dt,waveT<=0){wave++;let st=difficultyStage();waveT=[24,22,20,18,16][st];txt(wave%3?'WAVE '+wave:'HORDA MASSIVA!',player.x,player.y-100,2);let burst=wave%3===0?(22+st*10):(8+st*4);if(player.hp/player.maxHp<.25)burst=Math.floor(burst*.75);for(let i=0;i<burst;i++)spawnEnemy(chooseWaveEnemy())}
 for(const m of missions){if(!m.d&&m.c()){m.d=true;txt('MISSÃO: '+m.t,player.x,player.y-110,2);if(m.r==='chest')chests.push({x:player.x+rand(-80,80),y:player.y+rand(-80,80),r:16,open:false,p:0});if(m.r==='gold')goldRun+=80;if(m.r==='dmg')player.damage*=1.25}}
 let mx=0,my=0;if(keys.w||keys.arrowup)my--;if(keys.s||keys.arrowdown)my++;if(keys.a||keys.arrowleft)mx--;if(keys.d||keys.arrowright)mx++;if(mouse.down){let dx=mouse.x-W/2,dy=mouse.y-H/2,d=Math.hypot(dx,dy);if(d>8){mx+=dx/d;my+=dy/d}}let l=Math.hypot(mx,my)||1;player.x+=mx/l*player.speed*(slow>0?.55:1)*dt;player.y+=my/l*player.speed*(slow>0?.55:1)*dt;player.hp=Math.min(player.maxHp,player.hp+(.2+player.elements.light*.05)*dt);
 if(bossReady()){lastBoss=time;spawnBoss()}let sp=((event==='Eclipse'||event==='Lua Sangrenta')?1.55:1)*spawnRate();let pressure=Math.min(sp,7.5);if(enemies.length<spawnBudget()&&Math.random()<pressure*dt)spawnEnemy();if(enemies.length<spawnBudget()*.55&&Math.random()<pressure*.45*dt)spawnEnemy();if(Math.random()<.012*dt*(difficultyStage()+1)){txt('INVASÃO!',player.x,player.y-120,2);for(let i=0;i<14+difficultyStage()*6;i++)spawnEnemy(chooseWaveEnemy())}
 player.shot-=dt;if(player.shot<=0){shoot();player.shot=Math.max(.1,.65/player.fireRate)}if(player.weapons.nova>0){player.novaCd-=dt;if(player.novaCd<=0){let R=120+player.weapons.nova*22;ring(player.x,player.y,R,'#a78bfa');for(const e of enemies)if(Math.hypot(e.x-player.x,e.y-player.y)<R)hit(e,(30+player.weapons.nova*13)*player.damage,true);player.novaCd=Math.max(1.6,5.2-player.weapons.nova*.3)}}if(player.weapons.aura>0){let R=62+player.weapons.aura*15;for(const e of enemies)if(Math.hypot(e.x-player.x,e.y-player.y)<R)hit(e,(8+player.weapons.aura*4)*player.damage*dt,false)}if(player.weapons.orbit>0){let c=Math.min(player.weapons.orbit+1,8),R=62+player.weapons.orbit*7;for(let i=0;i<c;i++){let a=time*(2.4+player.weapons.orbit*.12)+i*Math.PI*2/c,ox=player.x+Math.cos(a)*R,oy=player.y+Math.sin(a)*R;for(const e of enemies)if(Math.hypot(e.x-ox,e.y-oy)<e.r+10)hit(e,(28+player.weapons.orbit*7)*player.damage*dt,false)}}if(player.evo.hole||player.relics.blackhole){for(const e of enemies){let d=Math.hypot(e.x-player.x,e.y-player.y);if(d<260){e.x+=(player.x-e.x)*dt*1.8;e.y+=(player.y-e.y)*dt*1.8}}}if(player.relics.storm&&Math.random()<.06){let e=near();if(e)hit(e,180*player.damage,true)}if(player.relics.time&&Math.floor(time)%18===0)freeze=Math.max(freeze,.25);
 for(const e of enemies){if(e.dead)continue;if(e.invuln>0)e.invuln-=dt;if(e.burn>0){e.burn-=dt;e.hp-=12*player.damage*dt}if(e.poison>0){e.hp-=e.poison*5*dt;e.poison*=.997}if(e.freeze>0)e.freeze-=dt;enemySkill(e,dt);if(e.boss&&e.hp<e.maxHp*.66&&e.phase===1){e.phase=2;e.speed*=1.18;e.damage*=1.18;bossPhaseShield(e);txt('FASE 2!',e.x,e.y-e.r-20,1);shake=10}if(e.boss&&e.hp<e.maxHp*.33&&e.phase===2){e.phase=3;e.speed*=1.25;e.damage*=1.25;bossPhaseShield(e);txt('FASE 3!',e.x,e.y-e.r-20,1);shake=15}if(e.boss&&time-(e.spawnTime||time)>95&&!e.enraged){e.enraged=true;e.speed*=1.45;e.damage*=1.45;e.color='#ef4444';txt('ENRAGE!',e.x,e.y-e.r-24,1.2);shake=18}let a=Math.atan2(player.y-e.y,player.x-e.x),side=e.kind==='ghost'?Math.sin(time*5+e.x*.01)*.35:0,ed=(freeze>0||e.freeze>0)?0:dt;e.x+=Math.cos(a+side)*e.speed*ed;e.y+=Math.sin(a+side)*e.speed*ed;if(Math.hypot(e.x-player.x,e.y-player.y)<e.r+player.r){let d=e.damage*dt;if(time<BALANCE.earlyShield)d*=.72;if(shield>0)d*=.15;player.hp-=d;e.x-=Math.cos(a)*75*dt;e.y-=Math.sin(a)*75*dt;shake=Math.max(shake,2.2)}}
-for(const b of bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;if(b.enemy){if(Math.hypot(b.x-player.x,b.y-player.y)<b.r+player.r){let d=b.dmg;if(shield>0)d*=.15;player.hp-=d;b.dead=true;shake=8}continue}for(const e of enemies){if(e.dead||b.dead)continue;if(Math.hypot(e.x-b.x,e.y-b.y)<e.r+b.r){hit(e,b.dmg,true);b.pierce--;if(b.pierce<0)b.dead=true}}}for(const g of gems){let d=Math.hypot(g.x-player.x,g.y-player.y);if(d<player.magnet){g.x+=(player.x-g.x)*dt*7;g.y+=(player.y-g.y)*dt*7}if(d<player.r+g.r+6){g.dead=true;addXp(g.xp)}}for(const c of chests){c.p=(c.p||0)+dt;if(c.gone)continue;if(!c.open&&Math.hypot(c.x-player.x,c.y-player.y)<45)openChest(c)}for(const p of pools){p.life-=dt;if(Math.hypot(p.x-player.x,p.y-player.y)<p.r){if(p.type==='slow'||p.type==='root'||p.type==='ice')slow=Math.max(slow,.35);if(p.type==='fire')player.hp-=10*dt;if(p.type==='ice')freeze=Math.max(freeze,.08)}}for(const p of pets){p.a+=dt*2.2;p.cd-=dt;let px=player.x+Math.cos(p.a)*82,py=player.y+Math.sin(p.a)*82,t=near(px,py);if(t&&p.cd<=0){let a=Math.atan2(t.y-py,t.x-px);bullets.push({x:px,y:py,vx:Math.cos(a)*500,vy:Math.sin(a)*500,r:5,life:1,dmg:22*player.damage,pierce:1,color:p.c});p.cd=.7}}for(const s of summons){let t=near(s.x,s.y);if(t){let a=Math.atan2(t.y-s.y,t.x-s.x);s.x+=Math.cos(a)*s.spd*dt;s.y+=Math.sin(a)*s.spd*dt;if(Math.hypot(t.x-s.x,t.y-s.y)<t.r+s.r)hit(t,s.dmg*dt*8,true)}}for(const t of turrets){t.cd-=dt;if(t.cd<=0){let e=near(t.x,t.y);if(e){let a=Math.atan2(e.y-t.y,e.x-t.x);bullets.push({x:t.x,y:t.y,vx:Math.cos(a)*520,vy:Math.sin(a)*520,r:5,life:1.3,dmg:28*player.damage,pierce:1,color:'#22c55e'})}t.cd=.55}}for(const d of drones){d.a+=dt*3;let dx=player.x+Math.cos(d.a)*d.rad,dy=player.y+Math.sin(d.a)*d.rad;for(const e of enemies)if(Math.hypot(e.x-dx,e.y-dy)<e.r+d.r)hit(e,70*dt*player.damage,false)}for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;p.r*=.985}for(const t of texts){t.y-=48*dt;t.life-=dt}enemies=enemies.filter(e=>!e.dead&&Math.abs(e.x-player.x)<2800&&Math.abs(e.y-player.y)<2800);bullets=bullets.filter(b=>!b.dead&&b.life>0);gems=gems.filter(g=>!g.dead);particles=particles.filter(p=>p.life>0);texts=texts.filter(t=>t.life>0);pools=pools.filter(p=>p.life>0);chests=chests.filter(c=>!c.gone);shake*=.9;evos();if(player.hp<=0){if(player.relics.phoenix&&!player.revived){player.revived=true;player.hp=player.maxHp*.6;txt('FÊNIX!',player.x,player.y-100,2)}else end(false)}if(time>=600&&mode==='normal')end(true)}
-function end(win){state='end';meta.gold+=Math.floor(goldRun);save();over.classList.remove('hidden');endTitle.textContent=win?'VITÓRIA!':'FIM DE JOGO';final.innerHTML=`Tempo: ${fmt(time)}<br>Level: ${player.level}<br>Abates: ${kills}<br>Dano: ${Math.floor(dmgDone)}<br>Maior Combo: ${maxCombo}<br>Rank: ${rank()}<br>Ouro ganho: ${Math.floor(goldRun)}<br>Relíquias: ${Object.keys(player.relics).filter(k=>player.relics[k]).join(', ')||'Nenhuma'}<br>Achievements: ${ach.join(', ')||'Nenhum'}`}
+for(const b of bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;if(b.enemy){if(Math.hypot(b.x-player.x,b.y-player.y)<b.r+player.r){let d=b.dmg;if(shield>0)d*=.15;player.hp-=d;b.dead=true;shake=8}continue}for(const e of enemies){if(e.dead||b.dead)continue;if(Math.hypot(e.x-b.x,e.y-b.y)<e.r+b.r){hit(e,b.dmg,true);b.pierce--;if(b.pierce<0)b.dead=true}}}collectGems(dt);for(const c of chests){c.p=(c.p||0)+dt;if(c.gone)continue;if(!c.open&&Math.hypot(c.x-player.x,c.y-player.y)<45)openChest(c)}for(const p of pools){p.life-=dt;if(Math.hypot(p.x-player.x,p.y-player.y)<p.r){if(p.type==='slow'||p.type==='root'||p.type==='ice')slow=Math.max(slow,.35);if(p.type==='fire')player.hp-=10*dt;if(p.type==='ice')freeze=Math.max(freeze,.08)}}for(const p of pets){p.a+=dt*2.2;p.cd-=dt;let px=player.x+Math.cos(p.a)*82,py=player.y+Math.sin(p.a)*82,t=near(px,py);if(t&&p.cd<=0){let a=Math.atan2(t.y-py,t.x-px);bullets.push({x:px,y:py,vx:Math.cos(a)*500,vy:Math.sin(a)*500,r:5,life:1,dmg:22*player.damage,pierce:1,color:p.c});p.cd=.7}}for(const s of summons){let t=near(s.x,s.y);if(t){let a=Math.atan2(t.y-s.y,t.x-s.x);s.x+=Math.cos(a)*s.spd*dt;s.y+=Math.sin(a)*s.spd*dt;if(Math.hypot(t.x-s.x,t.y-s.y)<t.r+s.r)hit(t,s.dmg*dt*8,true)}}for(const t of turrets){t.cd-=dt;if(t.cd<=0){let e=near(t.x,t.y);if(e){let a=Math.atan2(e.y-t.y,e.x-t.x);bullets.push({x:t.x,y:t.y,vx:Math.cos(a)*520,vy:Math.sin(a)*520,r:5,life:1.3,dmg:28*player.damage,pierce:1,color:'#22c55e'})}t.cd=.55}}for(const d of drones){d.a+=dt*3;let dx=player.x+Math.cos(d.a)*d.rad,dy=player.y+Math.sin(d.a)*d.rad;for(const e of enemies)if(Math.hypot(e.x-dx,e.y-dy)<e.r+d.r)hit(e,70*dt*player.damage,false)}for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;p.r*=.985}for(const t of texts){t.y-=48*dt;t.life-=dt}enemies=enemies.filter(e=>!e.dead&&Math.abs(e.x-player.x)<2800&&Math.abs(e.y-player.y)<2800);bullets=bullets.filter(b=>!b.dead&&b.life>0);gems=gems.filter(g=>!g.dead);particles=particles.filter(p=>p.life>0);texts=texts.filter(t=>t.life>0);pools=pools.filter(p=>p.life>0);chests=chests.filter(c=>!c.gone);shake*=.9;evos();if(player.hp<=0){if(player.relics.phoenix&&!player.revived){player.revived=true;player.hp=player.maxHp*.6;txt('FÊNIX!',player.x,player.y-100,2)}else end(false)}if(time>=600&&mode==='normal')end(true)}
+function end(win){if(state==='end')return;state='end';player.electricShield=false;window.finishMetaRun?.();meta.gold+=Math.floor(goldRun);save();over.classList.remove('hidden');endTitle.textContent=win?'VITÓRIA!':'FIM DE JOGO';final.innerHTML=`Tempo: ${fmt(time)}<br>Level: ${player.level}<br>Abates: ${kills}<br>Dano: ${Math.floor(dmgDone)}<br>Maior Combo: ${maxCombo}<br>Rank: ${rank()}<br>Ouro ganho: ${Math.floor(goldRun)}<br>Relíquias: ${Object.keys(player.relics).filter(k=>player.relics[k]).join(', ')||'Nenhuma'}<br>Achievements: ${ach.join(', ')||'Nenhum'}`}
 function fmt(t){return Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0')}
 function drawGrid(){ctx.strokeStyle='#ffffff0b';let s=80,left=player.x-W/2,top=player.y-H/2;for(let x=left-left%s;x<left+W;x+=s){ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,top+H);ctx.stroke()}for(let y=top-top%s;y<top+H;y+=s){ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(left+W,y);ctx.stroke()}}
 
@@ -1294,7 +1318,7 @@ window.addEventListener("load",()=>{
 
         if(typeof player === "undefined") return;
 
-        player.tempMagnetTimer = 600; // 10 segundos
+        player.tempMagnetTimer = 10; // 10 segundos
 
         const originalMagnet = player.baseMagnet || player.magnet || 130;
         player.baseMagnet = originalMagnet;
@@ -1304,25 +1328,7 @@ window.addEventListener("load",()=>{
         console.log("🧲 Magnetismo ativado por 10 segundos");
     };
 
-    setInterval(()=>{
-
-        if(typeof player === "undefined") return;
-
-        if(player.tempMagnetTimer > 0){
-
-            player.tempMagnetTimer--;
-
-            player.magnet = 700;
-
-            if(player.tempMagnetTimer <= 0){
-
-                player.magnet = player.baseMagnet || 130;
-
-                console.log("🧲 Magnetismo terminou");
-            }
-        }
-
-    },16);
+    // Duração controlada pelo delta time do loop principal.
 
 });
 </script>
@@ -1339,7 +1345,7 @@ window.addEventListener("load",()=>{
     // ============================================================
     // SAVE DATA
     // ============================================================
-    const save = JSON.parse(localStorage.getItem("metaProgression") || "{}");
+    const save = window.gamePersistence.data;
 
     save.gold = save.gold || 0;
     save.souls = save.souls || 0;
@@ -1354,7 +1360,7 @@ window.addEventListener("load",()=>{
     };
 
     function persist(){
-        localStorage.setItem("metaProgression", JSON.stringify(save));
+        window.gamePersistence.persist(); info();
     }
 
     // ============================================================
@@ -1373,14 +1379,14 @@ window.addEventListener("load",()=>{
         player.hp = player.maxHp;
 
         player.magnet += save.upgrades.magnet * 60;
+        player.baseMagnet = player.magnet;
 
-        player.critChance = (player.critChance || 0.05)
-            + (save.upgrades.crit * 0.03);
+        player.crit += save.upgrades.crit * 0.03;
 
         console.log("Meta upgrades aplicados");
     }
 
-    setTimeout(applyMetaUpgrades, 1000);
+    window.applyMetaUpgrades = applyMetaUpgrades;
 
     // ============================================================
     // HUD META
@@ -1436,6 +1442,7 @@ window.addEventListener("load",()=>{
         `;
     }
 
+    window.refreshMetaHud = renderMetaHud;
     renderMetaHud();
 
     // ============================================================
@@ -1443,11 +1450,11 @@ window.addEventListener("load",()=>{
     // ============================================================
     window.gainMetaResources = function(){
 
-        save.gold += Math.floor((window.goldRun || 0) * 0.35);
+        // Ouro creditado uma única vez em end().
 
-        save.souls += Math.floor((window.kills || 0) / 35);
+        save.souls += Math.floor((kills || 0) / 35);
 
-        save.crystals += Math.floor((window.wave || 1) / 3);
+        save.crystals += Math.floor((wave || 1) / 3);
 
         persist();
         renderMetaHud();
@@ -1458,20 +1465,12 @@ window.addEventListener("load",()=>{
     // ============================================================
     // DETECTAR MORTE
     // ============================================================
-    setInterval(()=>{
-
-        if(typeof player === "undefined") return;
-
-        if(player.hp <= 0 && !window.metaRewardGiven){
-
-            window.metaRewardGiven = true;
-
-            gainMetaResources();
-
-            showMetaRewardPopup();
-        }
-
-    },300);
+    window.finishMetaRun = function(){
+        if(window.metaRewardGiven) return;
+        window.metaRewardGiven=true;
+        gainMetaResources();
+        showMetaRewardPopup();
+    };
 
     // ============================================================
     // POPUP
@@ -1486,15 +1485,15 @@ window.addEventListener("load",()=>{
             </div>
 
             <div style="margin-top:14px">
-                🪙 Ouro salvo: +${Math.floor((window.goldRun || 0) * 0.35)}
+                🪙 Ouro salvo: +${Math.floor((goldRun || 0) * 0.35)}
             </div>
 
             <div>
-                💀 Almas: +${Math.floor((window.kills || 0) / 35)}
+                💀 Almas: +${Math.floor((kills || 0) / 35)}
             </div>
 
             <div>
-                💎 Cristais: +${Math.floor((window.wave || 1) / 3)}
+                💎 Cristais: +${Math.floor((wave || 1) / 3)}
             </div>
         `;
 
@@ -1679,7 +1678,7 @@ window.addEventListener("load",()=>{
         renderMetaHud();
         renderShop();
 
-        applyMetaUpgrades();
+        // As melhorias compradas entram em vigor na próxima partida.
 
         console.log("Upgrade comprado:", type);
     };
@@ -1912,6 +1911,7 @@ window.addEventListener("load",()=>{
     // INFERNAL EYE
     // ============================================================
     setInterval(()=>{
+        if(state!=="play" || paused) return;
 
         const has = Array.isArray(player.relics) && player.relics.find(r=>r.id==="infernalEye");
 
@@ -1950,6 +1950,7 @@ window.addEventListener("load",()=>{
     // FROZEN HEART
     // ============================================================
     setInterval(()=>{
+        if(state!=="play" || paused) return;
 
         const has = Array.isArray(player.relics) && player.relics.find(r=>r.id==="frozenHeart");
 
@@ -1983,6 +1984,7 @@ window.addEventListener("load",()=>{
     // BLOOD CROWN
     // ============================================================
     setInterval(()=>{
+        if(state!=="play" || paused) return;
 
         const has = Array.isArray(player.relics) && player.relics.find(r=>r.id==="bloodCrown");
 
@@ -2002,6 +2004,7 @@ window.addEventListener("load",()=>{
     // SHADOW CORE
     // ============================================================
     setInterval(()=>{
+        if(state!=="play" || paused) return;
 
         const has = Array.isArray(player.relics) && player.relics.find(r=>r.id==="shadowCore");
 
@@ -2036,6 +2039,7 @@ window.addEventListener("load",()=>{
         let life = 0;
 
         const anim = setInterval(()=>{
+        if(state!=="play" || paused) return;
 
             life++;
 
@@ -2070,6 +2074,7 @@ window.addEventListener("load",()=>{
     // PLASMA ORB
     // ============================================================
     setInterval(()=>{
+        if(state!=="play" || paused) return;
 
         const has = Array.isArray(player.relics) && player.relics.find(r=>r.id==="plasmaOrb");
 
@@ -2115,6 +2120,7 @@ window.addEventListener("load",()=>{
     player.doomDamage = 1;
 
     setInterval(()=>{
+        if(state!=="play" || paused) return;
 
         const has = Array.isArray(player.relics) && player.relics.find(r=>r.id==="doomSkull");
 
@@ -2125,6 +2131,7 @@ window.addEventListener("load",()=>{
     },1000);
 
     setInterval(()=>{
+        if(state!=="play" || paused) return;
 
         const has = Array.isArray(player.relics) && player.relics.find(r=>r.id==="doomSkull");
 
@@ -2280,7 +2287,7 @@ window.addEventListener("load",()=>{
 
         // valor base seguro
         if(typeof player.baseMagnet !== "number"){
-            player.baseMagnet = 140;
+            player.baseMagnet = player.magnet || 130;
         }
 
         if(typeof player.magnet !== "number"){
@@ -2306,7 +2313,7 @@ window.addEventListener("load",()=>{
 
         ensureMagnet();
 
-        player.tempMagnetTimer = 600; // 10 segundos
+        player.tempMagnetTimer = 10; // 10 segundos
         player.magnet = 900;
 
         showMagnetPopup();
@@ -2317,74 +2324,12 @@ window.addEventListener("load",()=>{
     // ============================================================
     // TIMER
     // ============================================================
-    setInterval(()=>{
-
-        if(typeof player === "undefined") return;
-
-        if(player.tempMagnetTimer > 0){
-
-            player.tempMagnetTimer--;
-
-            player.magnet = 900;
-
-            if(player.tempMagnetTimer <= 0){
-
-                player.magnet = player.baseMagnet;
-
-                console.log("🧲 Magnetismo terminou");
-            }
-        }
-
-    },16);
+    // Duração controlada pelo delta time do loop principal.
 
     // ============================================================
     // ATRAÇÃO REAL DAS GEMS
     // ============================================================
-    setInterval(()=>{
-
-        if(typeof player === "undefined") return;
-        if(typeof gems === "undefined") return;
-        if(!Array.isArray(gems)) return;
-
-        const magnetRange = Number(player.magnet || 140);
-
-        gems.forEach(g=>{
-
-            if(!g) return;
-
-            const dx = player.x - g.x;
-            const dy = player.y - g.y;
-
-            const dist = Math.hypot(dx,dy);
-
-            if(dist < magnetRange){
-
-                const force = Math.max(0.03, 1 - dist/magnetRange);
-
-                g.x += dx * 0.08 * force;
-                g.y += dy * 0.08 * force;
-
-                // coleta instantânea perto
-                if(dist < 26){
-
-                    if(typeof xp !== "undefined"){
-                        xp += g.value || 1;
-                    }
-
-                    g.dead = true;
-                }
-            }
-        });
-
-        // limpa gems coletadas
-        for(let i=gems.length-1;i>=0;i--){
-
-            if(gems[i] && gems[i].dead){
-                gems.splice(i,1);
-            }
-        }
-
-    },16);
+    // Atração e XP centralizados em collectGems(dt).
 
     // ============================================================
     // POPUP
@@ -2512,8 +2457,8 @@ window.addEventListener("load",()=>{
         if(typeof player === "undefined") return;
 
         // Duração real de 10 segundos
-        player.superMagnetTimer = 600;
-        player.tempMagnetTimer = 600;
+        player.superMagnetTimer = 10;
+        player.tempMagnetTimer = 10;
         player.blackHoleMagnetTimer = 0;
 
         if(typeof player.baseMagnet !== "number"){
@@ -2612,28 +2557,7 @@ window.addEventListener("load",()=>{
     // DETECTOR GENÉRICO DE MORTE DE BOSS
     // Funciona mesmo se o código original não chamar callback.
     // ============================================================
-    const knownBosses = new WeakSet();
-    const rewardedBosses = new WeakSet();
-
-    setInterval(()=>{
-
-        if(typeof enemies === "undefined" || !Array.isArray(enemies)) return;
-
-        enemies.forEach(e=>{
-
-            if(!isBossEnemy(e)) return;
-
-            if(!knownBosses.has(e)){
-                knownBosses.add(e);
-            }
-
-            if((e.hp <= 0 || e.dead || e.remove || e.killed) && !rewardedBosses.has(e)){
-                rewardedBosses.add(e);
-                activateBossMagnet10s(e.x,e.y);
-            }
-        });
-
-    },80);
+    window.onBossDefeated = activateBossMagnet10s;
 
     // ============================================================
     // PATCH EM FUNÇÕES COMUNS DE BAÚ/RECOMPENSA DO BOSS
@@ -2709,7 +2633,7 @@ window.addEventListener("load",()=>{
         if(!p) return;
 
         p.electricShield = true;
-        p.electricShieldEnd = Date.now() + duration;
+        p.electricShieldRemaining = duration / 1000;
 
         createShieldAura();
         createShieldCore();
@@ -2754,6 +2678,7 @@ window.addEventListener("load",()=>{
         document.body.appendChild(aura);
 
         const follow = setInterval(()=>{
+        if(state!=="play" || paused) return;
 
             const p = getPlayer();
 
@@ -2806,6 +2731,7 @@ window.addEventListener("load",()=>{
         document.body.appendChild(core);
 
         const follow = setInterval(()=>{
+        if(state!=="play" || paused) return;
 
             const p = getPlayer();
 
@@ -2830,6 +2756,7 @@ window.addEventListener("load",()=>{
     // PARTÍCULAS VERDES
     // ============================================================
     setInterval(()=>{
+        if(state!=="play" || paused) return;
 
         const p = getPlayer();
 
@@ -2866,6 +2793,7 @@ window.addEventListener("load",()=>{
             let life = 0;
 
             const anim = setInterval(()=>{
+        if(state!=="play" || paused) return;
 
                 life++;
 
@@ -2895,6 +2823,7 @@ window.addEventListener("load",()=>{
     // ELETRICIDADE RODANDO
     // ============================================================
     setInterval(()=>{
+        if(state!=="play" || paused) return;
 
         const p = getPlayer();
 
@@ -2951,6 +2880,7 @@ window.addEventListener("load",()=>{
     // EFEITO DEFENSIVO
     // ============================================================
     setInterval(()=>{
+        if(state!=="play" || paused) return;
 
         const p = getPlayer();
 
@@ -3135,30 +3065,7 @@ window.addEventListener("load",()=>{
     // ============================================================
     // TIMER
     // ============================================================
-    setInterval(()=>{
-
-        const p = getPlayer();
-
-        if(!p || !p.electricShield) return;
-
-        if(Date.now() >= p.electricShieldEnd){
-
-            p.electricShield = false;
-
-            [
-                "electricShieldAura",
-                "electricShieldCore"
-            ].forEach(id=>{
-
-                const el = document.getElementById(id);
-
-                if(el){
-                    el.remove();
-                }
-            });
-        }
-
-    },100);
+    // Duração do escudo controlada pelo loop principal.
 
     // ============================================================
     // CSS
@@ -3269,7 +3176,7 @@ window.addEventListener("load",()=>{
 window.addEventListener("load",()=>{
   const removeShieldUi=()=>{
     document.querySelectorAll("button,div").forEach(el=>{
-      const txt=(el.innerText||"").toLowerCase();
+      const txt=Array.from(el.childNodes).filter(n=>n.nodeType===3).map(n=>n.textContent).join(" ").toLowerCase();
       if(txt.includes("shield power")||txt.includes("hex shield")||txt.includes("escudo elétrico")||txt.includes("escudo hextech")){
         el.remove();
       }
